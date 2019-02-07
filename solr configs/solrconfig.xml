@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+    <luceneMatchVersion>6.5.0</luceneMatchVersion>
+    <lib dir="${solr.install.dir:../../../..}/contrib/extraction/lib" regex=".*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-cell-\d.*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/contrib/clustering/lib/" regex=".*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-clustering-\d.*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/contrib/langid/lib/" regex=".*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-langid-\d.*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-ltr-\d.*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/contrib/velocity/lib" regex=".*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-velocity-\d.*\.jar" />
+    <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-dataimporthandler-.*\.jar" />
+
+    <dataDir>${solr.data.dir:}</dataDir>
+
+    <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.StandardDirectoryFactory}" />
+
+    <codecFactory class="solr.SchemaCodecFactory" />
+
+    <indexConfig>
+
+        <writeLockTimeout>1000</writeLockTimeout>
+        <commitLockTimeout>10000</commitLockTimeout>
+        <useCompoundFile>false</useCompoundFile>
+        <ramBufferSizeMB>32</ramBufferSizeMB>
+        <mergePolicyFactory class="org.apache.solr.index.TieredMergePolicyFactory">
+            <int name="maxMergeAtOnce">5</int>
+            <int name="segmentsPerTier">5</int>
+        </mergePolicyFactory>
+        <lockType>native</lockType>
+        <reopenReaders>true</reopenReaders>
+        <deletionPolicy class="solr.SolrDeletionPolicy">
+            <str name="maxCommitsToKeep">1</str>
+            <str name="maxOptimizedCommitsToKeep">0</str>
+        </deletionPolicy>
+        <infoStream>false</infoStream>
+    </indexConfig>
+    <jmx />
+    <updateHandler class="solr.DirectUpdateHandler2">
+        <updateLog>
+            <str name="dir">${solr.ulog.dir:}</str>
+            <int name="numVersionBuckets">${solr.ulog.numVersionBuckets:65536}</int>
+        </updateLog>
+    </updateHandler>
+    <query>
+        <maxBooleanClauses>1024</maxBooleanClauses>
+        <slowQueryThresholdMillis>-1</slowQueryThresholdMillis>
+
+
+        <filterCache class="solr.FastLRUCache" size="4000" initialSize="2000" autowarmCount="100" />
+        <queryResultCache class="solr.LRUCache" size="10000" initialSize="1000" autowarmCount="100" />
+        <documentCache class="solr.LRUCache" size="25000" initialSize="512" autowarmCount="512" />
+
+        <cache enable="${solr.ltr.enabled:false}" name="QUERY_DOC_FV" class="solr.search.LRUCache" size="4096" initialSize="2048" autowarmCount="4096" regenerator="solr.search.NoOpRegenerator" />
+        
+        <enableLazyFieldLoading>true</enableLazyFieldLoading>
+        <queryResultWindowSize>40</queryResultWindowSize>
+        <queryResultMaxDocsCached>200</queryResultMaxDocsCached>
+        <listener event="newSearcher" class="org.apache.solr.schema.ExternalFileFieldReloader"/>
+        <listener event="firstSearcher" class="org.apache.solr.schema.ExternalFileFieldReloader"/>
+        <useColdSearcher>false</useColdSearcher>
+        <maxWarmingSearchers>2</maxWarmingSearchers>
+        
+    </query>
+    <requestDispatcher handleSelect="true">
+        <requestParsers enableRemoteStreaming="true" multipartUploadLimitInKB="2048000" formdataUploadLimitInKB="2048" addHttpRequestToContext="false" />
+        <httpCaching never304="false" lastModifiedFrom="openTime" etagSeed="Solr">
+        </httpCaching>
+    </requestDispatcher>
+    <schemaFactory class="ClassicIndexSchemaFactory"/>
+    
+    <requestHandler name="search" class="solr.SearchHandler">
+        <lst name="invariants">
+            <str name="defType">edismax</str>
+            <str name="indent">on</str>
+        </lst>
+        <lst name="defaults">
+            <str name="echoParams">none</str>
+            <str name="wt">json</str>
+            <str name="rows">20</str>
+            <str name="timeAllowed">15000</str>
+            <str name="qf">titlews</str>
+            <str name="fl">displayid,datatype,title</str>
+            <str name="mm">2&lt;-1 4&lt;70%</str>
+        </lst>
+        <arr name="last-components">
+            <str>elevator</str>
+        </arr>
+    </requestHandler>
+
+      <!-- Query Elevation Component
+       http://wiki.apache.org/solr/QueryElevationComponent
+       a search component that enables you to configure the top
+       results for a given query regardless of the normal lucene
+       scoring.
+    -->
+    <searchComponent name="elevator" class="solr.QueryElevationComponent" >
+      <!-- pick a fieldType to analyze queries -->
+      <str name="queryFieldType">string</str>
+      <str name="config-file">elevate.xml</str>
+    </searchComponent>
+
+    <!-- A request handler for demonstrating the elevator component -->
+    <!-- <requestHandler name="/elevate" class="solr.SearchHandler" startup="lazy">
+      <lst name="defaults">
+        <str name="echoParams">explicit</str>
+        <str name="df">titlews</str>
+        <str name="fl">displayid,datatype,title</str>
+      </lst>
+      <arr name="last-components">
+        <str>elevator</str>
+      </arr>
+    </requestHandler>-->
+
+    <searchComponent name="mlt" class="solr.MoreLikeThisComponent" />
+    <requestHandler name="mlt" class="solr.SearchHandler">
+        <lst name="defaults">
+            <arr name="components">
+                <str>mlt</str>
+            </arr>
+            <str name="mlt.fl">smalldesc</str>
+            <str name="mlt.mintf">1</str>
+            <str name="mlt.mindf">2</str>
+            <str name="mlt.boost">true</str>
+        </lst>
+    </requestHandler>
+
+    <requestHandler name="/query" class="solr.SearchHandler">
+        <lst name="defaults">
+            <str name="echoParams">explicit</str>
+            <str name="wt">json</str>
+            <str name="indent">true</str>
+            <str name="df">text</str>
+        </lst>
+    </requestHandler>
+
+    <requestHandler name="/get" class="solr.RealTimeGetHandler">
+        <lst name="defaults">
+            <str name="omitHeader">true</str>
+        </lst>
+    </requestHandler>
+    <requestHandler name="/update" class="solr.UpdateRequestHandler">
+
+    </requestHandler>
+
+    <requestHandler name="/update/extract" startup="lazy" class="solr.extraction.ExtractingRequestHandler">
+        <lst name="defaults">
+
+            <str name="fmap.content">text</str>
+            <str name="lowernames">true</str>
+            <str name="uprefix">ignored_</str>
+            <str name="captureAttr">true</str>
+            <str name="fmap.a">links</str>
+            <str name="fmap.div">ignored_</str>
+        </lst>
+    </requestHandler>
+    <requestHandler name="/analysis/field" startup="lazy" class="solr.FieldAnalysisRequestHandler" />
+    <requestHandler name="/analysis/document" class="solr.DocumentAnalysisRequestHandler" startup="lazy" />
+    <searchComponent name="spellcheck" class="solr.SpellCheckComponent">
+        <str name="queryAnalyzerFieldType">textSpell</str>
+        <lst name="spellchecker">
+            <str name="name">default</str>
+            <str name="field">titlews</str>
+            <str name="classname">solr.DirectSolrSpellChecker</str>
+            <!-- the spellcheck distance measure used, the default is the internal levenshtein -->
+            <str name="distanceMeasure">internal</str>
+            <!-- minimum accuracy needed to be considered a valid spellcheck suggestion -->
+            <float name="accuracy">0.5</float>
+            <!-- the maximum #edits we consider when enumerating terms: can be 1 or 2 -->
+            <int name="maxEdits">1</int>
+            <!-- the minimum shared prefix when enumerating terms -->
+            <int name="minPrefix">1</int>
+            <!-- maximum number of inspections per result. -->
+            <int name="maxInspections">5</int>
+            <!-- minimum length of a query term to be considered for correction -->
+            <int name="minQueryLength">5</int>
+            <!-- maximum threshold of documents a query term can appear to be considered for correction -->
+            <float name="maxQueryFrequency">100</float>
+            <!-- uncomment this to require suggestions to occur in 1% of the documents -->
+            <float name="thresholdTokenFrequency">100</float>
+            <str name="comparatorClass">freq</str>
+        </lst>
+        <!-- a spellchecker that can break or combine words.  See "/spell" handler below for usage -->
+        <lst name="spellchecker">
+            <str name="name">wordbreak</str>
+            <str name="classname">solr.WordBreakSolrSpellChecker</str>
+            <str name="field">name</str>
+            <str name="combineWords">true</str>
+            <str name="breakWords">true</str>
+            <int name="maxChanges">10</int>
+        </lst>
+        <!-- a spellchecker that uses a different distance measure -->
+    </searchComponent>
+    <requestHandler name="/spell" class="solr.SearchHandler" startup="lazy">
+        <lst name="defaults">
+            <str name="spellcheck.dictionary">default</str>
+            <str name="spellcheck">on</str>
+            <str name="spellcheck.extendedResults">true</str>
+            <str name="spellcheck.count">10</str>
+            <str name="spellcheck.onlyMorePopular">true</str>
+            <str name="spellcheck.collate">true</str>
+        </lst>
+        <arr name="last-components">
+            <str>spellcheck</str>
+        </arr>
+    </requestHandler>
+    <searchComponent name="clustering" enable="${solr.clustering.enabled:false}" class="solr.clustering.ClusteringComponent">
+        <!-- Declare an engine -->
+        <lst name="engine">
+            <str name="name">default</str>
+            <str name="carrot.algorithm">org.carrot2.clustering.lingo.LingoClusteringAlgorithm</str>
+            <str name="LingoClusteringAlgorithm.desiredClusterCountBase">20</str>
+            <str name="carrot.lexicalResourcesDir">clustering/carrot2</str>
+            <str name="MultilingualClustering.defaultLanguage">ENGLISH</str>
+        </lst>
+        <lst name="engine">
+            <str name="name">stc</str>
+            <str name="carrot.algorithm">org.carrot2.clustering.stc.STCClusteringAlgorithm</str>
+        </lst>
+    </searchComponent>
+    <queryResponseWriter name="json" class="solr.JSONResponseWriter">
+        <str name="content-type">text/plain; charset=UTF-8</str>
+    </queryResponseWriter>
+    <queryResponseWriter name="velocity" class="solr.VelocityResponseWriter" startup="lazy" />
+    <queryResponseWriter name="xslt" class="solr.XSLTResponseWriter">
+        <int name="xsltCacheLifetimeSeconds">5</int>
+    </queryResponseWriter>
+    <admin>
+        <defaultQuery>*:*</defaultQuery>
+    </admin>
+</config>

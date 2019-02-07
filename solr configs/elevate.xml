@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<elevate>
+  <!--<query text="foo bar">
+    <doc id="1" />
+    <doc id="2" />
+    <doc id="3" />
+  </query>-->
+
+  <query text="rent">
+    <doc id="1170443255" />
+    <doc id="1170473548" />
+  </query>
+
+  <query text="mobile">
+    <doc id="1265740233" />
+    <doc id="1265740548" />
+  </query>
+
+  <query text="samsung">
+    <doc id="1265740548" />
+    <doc id="1251929948" />
+  </query>
+
+</elevate>
